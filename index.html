@@ -1,0 +1,1262 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Data-Driven Taiwan Housing Market Analysis</title>
+  <meta name="description" content="A data-driven Taiwan housing market analysis covering 2021Q1 to 2025Q4 actual price registration records, GIS hotspots, the Wenshan District case study, and XGBoost model insights.">
+  <style>
+    :root {
+      --ink: #1d2723;
+      --muted: #65706b;
+      --line: #dbe1dc;
+      --paper: #ffffff;
+      --wash: #f5f7f4;
+      --mist: #e9f0ec;
+      --teal: #23635e;
+      --teal-dark: #173f3b;
+      --rust: #bd5535;
+      --gold: #c1912c;
+      --berry: #8c3f5c;
+      --shadow: 0 18px 45px rgba(20, 33, 28, 0.1);
+      --radius: 8px;
+      --max: 1180px;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html {
+      scroll-behavior: smooth;
+    }
+
+    body {
+      margin: 0;
+      color: var(--ink);
+      background: var(--paper);
+      font-family: "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      line-height: 1.75;
+      letter-spacing: 0;
+    }
+
+    img {
+      display: block;
+      max-width: 100%;
+    }
+
+    a {
+      color: inherit;
+      text-decoration: none;
+    }
+
+    .skip-link {
+      position: absolute;
+      left: 16px;
+      top: -80px;
+      z-index: 100;
+      padding: 10px 14px;
+      border-radius: 6px;
+      background: var(--paper);
+      color: var(--ink);
+      box-shadow: var(--shadow);
+      transition: top 0.2s ease;
+    }
+
+    .skip-link:focus {
+      top: 16px;
+    }
+
+    .topbar {
+      position: sticky;
+      top: 0;
+      z-index: 50;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+      background: rgba(29, 39, 35, 0.88);
+      backdrop-filter: blur(18px);
+      color: #fff;
+    }
+
+    .nav {
+      width: min(100% - 32px, var(--max));
+      margin: 0 auto;
+      min-height: 64px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 20px;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      font-weight: 800;
+      white-space: nowrap;
+    }
+
+    .brand-mark {
+      width: 34px;
+      height: 34px;
+      border-radius: 7px;
+      background:
+        linear-gradient(135deg, var(--gold), transparent 48%),
+        linear-gradient(315deg, var(--rust), transparent 46%),
+        var(--teal);
+      box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.28);
+    }
+
+    .nav-links {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      overflow-x: auto;
+      scrollbar-width: none;
+    }
+
+    .nav-links::-webkit-scrollbar {
+      display: none;
+    }
+
+    .nav-links a {
+      padding: 8px 11px;
+      border-radius: 6px;
+      color: rgba(255, 255, 255, 0.86);
+      font-size: 0.94rem;
+      white-space: nowrap;
+    }
+
+    .nav-links a:hover,
+    .nav-links a:focus {
+      background: rgba(255, 255, 255, 0.12);
+      color: #fff;
+      outline: none;
+    }
+
+    .hero {
+      min-height: 82vh;
+      color: #fff;
+      background:
+        linear-gradient(90deg, rgba(18, 29, 25, 0.92) 0%, rgba(18, 29, 25, 0.72) 46%, rgba(18, 29, 25, 0.38) 100%),
+        url("img/task08_price_density_en.png") center / cover no-repeat;
+      display: grid;
+      align-items: center;
+      position: relative;
+    }
+
+    .hero::after {
+      content: "";
+      position: absolute;
+      inset: auto 0 0;
+      height: 120px;
+      background: linear-gradient(0deg, var(--paper), rgba(255, 255, 255, 0));
+      pointer-events: none;
+    }
+
+    .hero-inner {
+      position: relative;
+      z-index: 1;
+      width: min(100% - 32px, var(--max));
+      margin: 0 auto;
+      padding: 84px 0 112px;
+    }
+
+    .eyebrow {
+      margin: 0 0 16px;
+      color: #dce8df;
+      font-size: 0.95rem;
+      font-weight: 800;
+      text-transform: uppercase;
+    }
+
+    h1,
+    h2,
+    h3,
+    p {
+      margin-top: 0;
+    }
+
+    h1 {
+      max-width: 820px;
+      margin-bottom: 24px;
+      font-size: 4.2rem;
+      line-height: 1.08;
+      letter-spacing: 0;
+    }
+
+    .hero-copy {
+      max-width: 760px;
+      margin-bottom: 34px;
+      color: rgba(255, 255, 255, 0.9);
+      font-size: 1.18rem;
+    }
+
+    .hero-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+    }
+
+    .button {
+      display: inline-flex;
+      min-height: 44px;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      padding: 10px 16px;
+      border: 1px solid transparent;
+      border-radius: 7px;
+      font-weight: 800;
+      line-height: 1.2;
+      transition: transform 0.18s ease, background 0.18s ease, border-color 0.18s ease;
+    }
+
+    .button:hover,
+    .button:focus {
+      transform: translateY(-1px);
+      outline: none;
+    }
+
+    .button.primary {
+      background: #fff;
+      color: var(--ink);
+    }
+
+    .button.secondary {
+      border-color: rgba(255, 255, 255, 0.42);
+      background: rgba(255, 255, 255, 0.1);
+      color: #fff;
+    }
+
+    main {
+      background: var(--paper);
+    }
+
+    section {
+      padding: 82px 0;
+    }
+
+    .section-band {
+      background: var(--wash);
+    }
+
+    .section-dark {
+      background: var(--ink);
+      color: #fff;
+    }
+
+    .wrap {
+      width: min(100% - 32px, var(--max));
+      margin: 0 auto;
+    }
+
+    .section-head {
+      max-width: 780px;
+      margin-bottom: 38px;
+    }
+
+    .section-head h2 {
+      margin-bottom: 12px;
+      font-size: 2.4rem;
+      line-height: 1.18;
+      letter-spacing: 0;
+    }
+
+    .section-head p {
+      margin-bottom: 0;
+      color: var(--muted);
+      font-size: 1.05rem;
+    }
+
+    .section-dark .section-head p {
+      color: rgba(255, 255, 255, 0.72);
+    }
+
+    .metrics {
+      display: grid;
+      grid-template-columns: repeat(5, minmax(0, 1fr));
+      gap: 14px;
+    }
+
+    .metric {
+      min-height: 156px;
+      padding: 22px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: var(--paper);
+      box-shadow: 0 10px 26px rgba(24, 39, 33, 0.06);
+    }
+
+    .metric strong {
+      display: block;
+      margin-bottom: 10px;
+      color: var(--teal-dark);
+      font-size: 2rem;
+      line-height: 1.1;
+    }
+
+    .metric span {
+      color: var(--muted);
+      font-size: 0.94rem;
+    }
+
+    .story-grid {
+      display: grid;
+      grid-template-columns: 0.92fr 1.08fr;
+      gap: 34px;
+      align-items: start;
+    }
+
+    .method-list {
+      display: grid;
+      gap: 12px;
+      counter-reset: method;
+    }
+
+    .method-item {
+      display: grid;
+      grid-template-columns: 52px 1fr;
+      gap: 16px;
+      padding: 18px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: var(--paper);
+    }
+
+    .method-item::before {
+      counter-increment: method;
+      content: counter(method, decimal-leading-zero);
+      width: 44px;
+      height: 44px;
+      display: grid;
+      place-items: center;
+      border-radius: 7px;
+      background: var(--mist);
+      color: var(--teal-dark);
+      font-weight: 900;
+    }
+
+    .method-item h3 {
+      margin-bottom: 4px;
+      font-size: 1.05rem;
+    }
+
+    .method-item p {
+      margin-bottom: 0;
+      color: var(--muted);
+      font-size: 0.95rem;
+    }
+
+    .callout {
+      padding: 28px;
+      border-left: 5px solid var(--rust);
+      border-radius: 0 var(--radius) var(--radius) 0;
+      background: #fff;
+      box-shadow: var(--shadow);
+    }
+
+    .callout h3 {
+      margin-bottom: 12px;
+      font-size: 1.35rem;
+    }
+
+    .callout p {
+      color: var(--muted);
+    }
+
+    .callout p:last-child {
+      margin-bottom: 0;
+    }
+
+    .insights {
+      display: grid;
+      gap: 56px;
+    }
+
+    .insight {
+      display: grid;
+      grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr);
+      gap: 30px;
+      align-items: center;
+      padding-bottom: 56px;
+      border-bottom: 1px solid var(--line);
+    }
+
+    .insight:last-child {
+      padding-bottom: 0;
+      border-bottom: 0;
+    }
+
+    .insight:nth-child(even) {
+      grid-template-columns: minmax(0, 1.1fr) minmax(0, 0.9fr);
+    }
+
+    .insight:nth-child(even) .insight-copy {
+      order: 2;
+    }
+
+    .insight-kicker {
+      color: var(--rust);
+      font-size: 0.9rem;
+      font-weight: 900;
+      text-transform: uppercase;
+    }
+
+    .insight h3 {
+      margin: 8px 0 14px;
+      font-size: 1.8rem;
+      line-height: 1.25;
+      letter-spacing: 0;
+    }
+
+    .insight p {
+      color: var(--muted);
+    }
+
+    .insight-list {
+      display: grid;
+      gap: 10px;
+      padding: 0;
+      margin: 18px 0 0;
+      list-style: none;
+    }
+
+    .insight-list li {
+      position: relative;
+      padding-left: 20px;
+      color: var(--ink);
+    }
+
+    .insight-list li::before {
+      content: "";
+      position: absolute;
+      left: 0;
+      top: 0.78em;
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--gold);
+    }
+
+    .chart-frame {
+      overflow: hidden;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: #fff;
+      box-shadow: var(--shadow);
+    }
+
+    .chart-frame img {
+      width: 100%;
+      aspect-ratio: 16 / 9;
+      object-fit: contain;
+      background: #fff;
+    }
+
+    .chart-caption {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 14px;
+      padding: 12px 14px;
+      border-top: 1px solid var(--line);
+      color: var(--muted);
+      font-size: 0.9rem;
+    }
+
+    .chart-caption a {
+      flex: 0 0 auto;
+      color: var(--teal-dark);
+      font-weight: 900;
+    }
+
+    .implications {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 16px;
+    }
+
+    .implication {
+      min-height: 238px;
+      padding: 22px;
+      border: 1px solid rgba(255, 255, 255, 0.18);
+      border-radius: var(--radius);
+      background: rgba(255, 255, 255, 0.06);
+    }
+
+    .implication .tag {
+      display: inline-block;
+      margin-bottom: 18px;
+      padding: 5px 9px;
+      border-radius: 5px;
+      background: rgba(255, 255, 255, 0.12);
+      color: rgba(255, 255, 255, 0.82);
+      font-size: 0.82rem;
+      font-weight: 800;
+    }
+
+    .implication h3 {
+      margin-bottom: 10px;
+      font-size: 1.16rem;
+    }
+
+    .implication p {
+      margin-bottom: 0;
+      color: rgba(255, 255, 255, 0.72);
+      font-size: 0.95rem;
+    }
+
+    .filterbar {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-bottom: 24px;
+    }
+
+    .filterbar button {
+      min-height: 38px;
+      border: 1px solid var(--line);
+      border-radius: 7px;
+      background: #fff;
+      color: var(--ink);
+      cursor: pointer;
+      font: inherit;
+      font-size: 0.93rem;
+      font-weight: 800;
+      padding: 7px 12px;
+    }
+
+    .filterbar button[aria-pressed="true"] {
+      border-color: var(--teal);
+      background: var(--teal);
+      color: #fff;
+    }
+
+    .gallery {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 16px;
+    }
+
+    .gallery-card {
+      display: grid;
+      grid-template-rows: auto 1fr;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      overflow: hidden;
+      background: #fff;
+      box-shadow: 0 10px 26px rgba(24, 39, 33, 0.06);
+    }
+
+    .gallery-card[hidden] {
+      display: none;
+    }
+
+    .gallery-card img {
+      width: 100%;
+      aspect-ratio: 16 / 9;
+      object-fit: contain;
+      background: #fff;
+      border-bottom: 1px solid var(--line);
+    }
+
+    .gallery-body {
+      display: grid;
+      gap: 12px;
+      padding: 16px;
+    }
+
+    .gallery-body h3 {
+      margin: 0;
+      font-size: 1.02rem;
+      line-height: 1.4;
+    }
+
+    .gallery-body p {
+      margin: 0;
+      color: var(--muted);
+      font-size: 0.92rem;
+    }
+
+    .gallery-links {
+      display: flex;
+      gap: 10px;
+      align-self: end;
+      flex-wrap: wrap;
+    }
+
+    .gallery-links a {
+      padding: 6px 9px;
+      border-radius: 6px;
+      background: var(--mist);
+      color: var(--teal-dark);
+      font-size: 0.88rem;
+      font-weight: 900;
+    }
+
+    .resource-grid {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 14px;
+    }
+
+    .resource {
+      padding: 20px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: var(--paper);
+    }
+
+    .resource strong {
+      display: block;
+      margin-bottom: 8px;
+      color: var(--teal-dark);
+      font-size: 1.03rem;
+    }
+
+    .resource span {
+      display: block;
+      color: var(--muted);
+      font-size: 0.9rem;
+    }
+
+    .resource:hover,
+    .resource:focus {
+      border-color: var(--teal);
+      outline: none;
+    }
+
+    footer {
+      padding: 34px 0 44px;
+      border-top: 1px solid var(--line);
+      color: var(--muted);
+      background: var(--wash);
+      font-size: 0.92rem;
+    }
+
+    .footer-inner {
+      width: min(100% - 32px, var(--max));
+      margin: 0 auto;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 18px;
+      flex-wrap: wrap;
+    }
+
+    @media (max-width: 1040px) {
+      .metrics,
+      .implications,
+      .resource-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+
+      .gallery {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+
+      .story-grid,
+      .insight,
+      .insight:nth-child(even) {
+        grid-template-columns: 1fr;
+      }
+
+      .insight:nth-child(even) .insight-copy {
+        order: 0;
+      }
+    }
+
+    @media (max-width: 720px) {
+      .nav {
+        min-height: auto;
+        padding: 12px 0;
+        align-items: flex-start;
+        flex-direction: column;
+      }
+
+      .brand {
+        white-space: normal;
+      }
+
+      h1 {
+        font-size: 2.55rem;
+      }
+
+      .hero {
+        min-height: auto;
+      }
+
+      .hero-inner {
+        padding: 64px 0 92px;
+      }
+
+      .hero-copy {
+        font-size: 1.02rem;
+      }
+
+      section {
+        padding: 60px 0;
+      }
+
+      .section-head h2 {
+        font-size: 2rem;
+      }
+
+      .metrics,
+      .implications,
+      .gallery,
+      .resource-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .metric {
+        min-height: auto;
+      }
+
+      .method-item {
+        grid-template-columns: 44px 1fr;
+        padding: 16px;
+      }
+
+      .method-item::before {
+        width: 38px;
+        height: 38px;
+        font-size: 0.86rem;
+      }
+
+      .chart-caption {
+        align-items: flex-start;
+        flex-direction: column;
+      }
+
+      .footer-inner {
+        align-items: flex-start;
+        flex-direction: column;
+      }
+    }
+  </style>
+</head>
+<body>
+  <a class="skip-link" href="#summary">Skip to content</a>
+
+  <header class="topbar" aria-label="Page navigation">
+    <nav class="nav">
+      <a class="brand" href="#top" aria-label="Back to top">
+        <span class="brand-mark" aria-hidden="true"></span>
+        <span>Taiwan Housing Market Analysis</span>
+      </a>
+      <div class="nav-links" aria-label="Sections">
+        <a href="#summary">Overview</a>
+        <a href="#method">Method</a>
+        <a href="#insights">Insights</a>
+        <a href="#implications">Applications</a>
+        <a href="#gallery">Charts</a>
+        <a href="#resources">Files</a>
+      </div>
+    </nav>
+  </header>
+
+  <div id="top" class="hero">
+    <div class="hero-inner">
+      <p class="eyebrow">2021Q1 - 2025Q4 Actual Price Registration Analysis</p>
+      <h1>Data-Driven Taiwan Housing Market Analysis</h1>
+      <p class="hero-copy">
+        This page summarizes the project findings, turning actual price registration data into business insights across national market cycles, district-level price-volume structure, building age and floor effects, Greater Taipei GIS hotspots, and the Wenshan District case study.
+      </p>
+      <div class="hero-actions">
+        <a class="button primary" href="#insights">Read Key Insights</a>
+        <a class="button secondary" href="profile_report.html" target="_blank" rel="noopener">Open EDA Profile</a>
+      </div>
+    </div>
+  </div>
+
+  <main>
+    <section id="summary" aria-labelledby="summary-title">
+      <div class="wrap">
+        <div class="section-head">
+          <h2 id="summary-title">Project Overview</h2>
+          <p>
+            The analysis covers Taiwan residential transactions from 2021Q1 to 2025Q4. After filtering transaction types, removing abnormal remarks, and engineering building-age and floor-level features, the data supports EDA, GIS visualization, and XGBoost models for the six major municipalities.
+          </p>
+        </div>
+
+        <div class="metrics" aria-label="Key metrics">
+          <div class="metric">
+            <strong>1,865,289</strong>
+            <span>Raw transaction observations compiled from quarterly county and city CSV files.</span>
+          </div>
+          <div class="metric">
+            <strong>933,821</strong>
+            <span>Clean residential samples focused on the retail housing market.</span>
+          </div>
+          <div class="metric">
+            <strong>345</strong>
+            <span>Administrative districts covered, enabling spatial comparison across regions.</span>
+          </div>
+          <div class="metric">
+            <strong>20</strong>
+            <span>Quarters in the time series, supporting post-pandemic cycle analysis through 2025.</span>
+          </div>
+          <div class="metric">
+            <strong>6</strong>
+            <span>Municipality-level models built to compare local price drivers.</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="method" class="section-band" aria-labelledby="method-title">
+      <div class="wrap">
+        <div class="story-grid">
+          <div>
+            <div class="section-head">
+              <h2 id="method-title">From Data to Insight</h2>
+              <p>
+                The core work was not just visualization. The highly mixed actual price registration data first had to be transformed into an interpretable residential-market scope.
+              </p>
+            </div>
+            <div class="callout">
+              <h3>Analysis Scope</h3>
+              <p>
+                The workflow excludes land-only deals, parking-space-only records, related-party transfers, offices, factories, hotels, and bulk transactions, then uses regular expressions to parse floors, transaction counts, road segments, and presale information.
+              </p>
+              <p>
+                As a result, the following charts mainly reflect retail residential prices faced by ordinary buyers, rather than commercial real estate or special-case transaction prices.
+              </p>
+            </div>
+          </div>
+
+          <div class="method-list">
+            <article class="method-item">
+              <div>
+                <h3>Quarterly Data Integration</h3>
+                <p>Consolidated 440 raw files from 22 county and city CSVs per quarter, covering 2021Q1 to 2025Q4.</p>
+              </div>
+            </article>
+            <article class="method-item">
+              <div>
+                <h3>Residential Market Filtering</h3>
+                <p>Removed non-residential and special-remark transactions to prevent related-party transfers, commercial uses, and bulk deals from distorting price benchmarks.</p>
+              </div>
+            </article>
+            <article class="method-item">
+              <div>
+                <h3>Feature Engineering</h3>
+                <p>Created analytical fields for building age, floor zone, whole-building status, presale status, parking status, and price per ping.</p>
+              </div>
+            </article>
+            <article class="method-item">
+              <div>
+                <h3>Spatial and Model Analysis</h3>
+                <p>Combined OSM/Nominatim geocoding for Greater Taipei GIS analysis with XGBoost models for the six major municipalities.</p>
+              </div>
+            </article>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="insights" aria-labelledby="insights-title">
+      <div class="wrap">
+        <div class="section-head">
+          <h2 id="insights-title">Key Insights</h2>
+          <p>
+            The following points condense the main findings into presentation-ready insights that remain traceable to the underlying charts.
+          </p>
+        </div>
+
+        <div class="insights">
+          <article class="insight">
+            <div class="insight-copy">
+              <span class="insight-kicker">Insight 01</span>
+              <h3>The market shifted from expansion to correction after 2024Q3, but core cities did not fall in sync</h3>
+              <p>
+                Taiwan's residential market rose on post-pandemic liquidity. The report indicates that prices peaked around 2024Q4; after 2024Q3, the seventh wave of selective credit controls weakened both prices and volume, with transaction volume falling about 20% from the peak.
+              </p>
+              <ul class="insight-list">
+                <li>By the end of 2025, the national median price per ping had fallen more than 12% from its peak.</li>
+                <li>Taipei City continued to rise, suggesting price stickiness and safe-haven demand for core capital-city assets.</li>
+                <li>The housing market is not moving as a single block; it is split across core metros, peripheral areas, and local hotspots.</li>
+              </ul>
+            </div>
+            <figure class="chart-frame">
+              <img src="img/task01_market_cycle_price_volume_en.png" alt="National quarterly price per ping and transaction volume trend from 2021Q1 to 2025Q4">
+              <figcaption class="chart-caption">
+                <span>National quarterly price-volume cycle</span>
+                <a href="img/task01_market_cycle_price_volume_en.html" target="_blank" rel="noopener">Interactive chart</a>
+              </figcaption>
+            </figure>
+          </article>
+
+          <article class="insight">
+            <div class="insight-copy">
+              <span class="insight-kicker">Insight 02</span>
+              <h3>Liquidity clusters in multi-core New Taipei, Taoyuan, and Kaohsiung markets, while price premiums concentrate in Taipei and Zhubei</h3>
+              <p>
+                Transaction volume and high prices do not necessarily appear in the same districts. Tamsui, Banqiao, and Sanchong are high-liquidity areas in New Taipei; Zhongli and Taoyuan District anchor Taoyuan, while Sanmin and Nanzih form Kaohsiung's transaction core.
+              </p>
+              <ul class="insight-list">
+                <li>Taipei districts show clear price premiums relative to the national market, with Da'an reaching a median of about NT$980,000 per ping.</li>
+                <li>Zhubei, supported by Hsinchu Science Park and high-speed rail access, reaches about NT$400,000 per ping and stands out as a high-price enclave outside the six major municipalities.</li>
+                <li>High-volume areas are useful for observing rigid housing demand, while high-price areas better reflect location, industry, and asset-preservation premiums.</li>
+              </ul>
+            </div>
+            <figure class="chart-frame">
+              <img src="img/task02_district_price_treemap_en.png" alt="Treemap of the top 120 districts by transaction volume, with area showing volume and color showing median price per ping">
+              <figcaption class="chart-caption">
+                <span>District price-volume treemap</span>
+                <a href="img/task02_district_price_treemap_en.html" target="_blank" rel="noopener">Interactive chart</a>
+              </figcaption>
+            </figure>
+          </article>
+
+          <article class="insight">
+            <div class="insight-copy">
+              <span class="insight-kicker">Insight 03</span>
+              <h3>Building age is not linear depreciation: homes over 50 years old show the highest median price per ping</h3>
+              <p>
+                A simple depreciation view cannot fully explain Taiwan housing prices. Homes over 50 years old have low transaction volume but the highest median unit prices, reflecting their concentration in older core districts where value shifts from the building itself to redevelopment land value.
+              </p>
+              <ul class="insight-list">
+                <li>Homes aged 20 to 50 years show the clearest discount, about 25% to 30% below younger properties.</li>
+                <li>Homes aged 11 to 20 years combine mature amenities with acceptable building condition, forming the second-highest price band.</li>
+                <li>Newer homes aged 0 to 10 years are often located in peripheral redevelopment zones, where location discounts can offset new-building premiums.</li>
+              </ul>
+            </div>
+            <figure class="chart-frame">
+              <img src="img/task06_age_band_price_volume_en.png" alt="Median price per ping and transaction volume by building age band">
+              <figcaption class="chart-caption">
+                <span>Building age price-volume relationship</span>
+                <a href="img/task06_age_band_price_volume_en.html" target="_blank" rel="noopener">Interactive chart</a>
+              </figcaption>
+            </figure>
+          </article>
+
+          <article class="insight">
+            <div class="insight-copy">
+              <span class="insight-kicker">Insight 04</span>
+              <h3>Floor level and building type interact strongly, with middle floors in walk-up apartments showing a clear price advantage</h3>
+              <p>
+                Floor level does not affect price in isolation; it works together with building type to shape residential utility. In walk-up apartments, middle floors roughly correspond to the second and third floors, balancing stair burden, privacy, and street noise, which creates a price premium.
+              </p>
+              <ul class="insight-list">
+                <li>Lower floors face noise, privacy, and sanitation externalities.</li>
+                <li>Upper floors in walk-up products carry higher stair-climbing costs.</li>
+                <li>The same floor band can have different economic meaning in elevator apartments, high-rise residential buildings, and walk-up apartments.</li>
+              </ul>
+            </div>
+            <figure class="chart-frame">
+              <img src="img/task03_floor_zone_heatmap_en.png" alt="Heatmap of median price per ping by building type and floor zone">
+              <figcaption class="chart-caption">
+                <span>Building type x floor zone</span>
+                <a href="img/task03_floor_zone_heatmap_en.html" target="_blank" rel="noopener">Interactive chart</a>
+              </figcaption>
+            </figure>
+          </article>
+
+          <article class="insight">
+            <div class="insight-copy">
+              <span class="insight-kicker">Insight 05</span>
+              <h3>GIS heatmaps bring price differences down to the block level and also validate data cleaning quality</h3>
+              <p>
+                The project uses OSM and Nominatim to geocode Greater Taipei addresses and build residential price-density heatmaps. Da'an, Xinyi, and Songshan show high-price saturation, while Sanchong, Banqiao, Wanhua, and Xinzhuang are relatively more affordable candidates for commuting and affordability tradeoffs.
+              </p>
+              <ul class="insight-list">
+                <li>Data gaps in core Xinyi and the Taipei Main Station commercial area reflect the removal of office and non-residential samples.</li>
+                <li>Road-segment premium analysis identifies high-end residential corridors with prices more than 100% above city averages.</li>
+                <li>Compared with tabular statistics, maps better reveal micro-level price jumps between neighboring blocks.</li>
+              </ul>
+            </div>
+            <figure class="chart-frame">
+              <img src="img/task08_price_density_en.png" alt="Greater Taipei residential price-density heatmap">
+              <figcaption class="chart-caption">
+                <span>Greater Taipei residential price density</span>
+                <a href="img/task08_price_density_en.html" target="_blank" rel="noopener">Interactive chart</a>
+              </figcaption>
+            </figure>
+          </article>
+
+          <article class="insight">
+            <div class="insight-copy">
+              <span class="insight-kicker">Insight 06</span>
+              <h3>Wenshan District moved against the trend, showing clear submarket divergence within Taipei</h3>
+              <p>
+                The Wenshan District case study extracts 6,570 valid residential transactions. Even as the national market weakened after 2024, Wenshan's median price per ping continued to rise, gaining about 17% over three years and showing catch-up growth with price resilience.
+              </p>
+              <ul class="insight-list">
+                <li>The median transaction building age rose, implying limited new supply and a market dominated by resale housing.</li>
+                <li>The median transaction area fell, showing that buyers shifted toward smaller units to reduce down-payment pressure under high total prices.</li>
+                <li>Wenshan deserves continued monitoring as a likely receiving area for shifted demand within metropolitan Taipei.</li>
+              </ul>
+            </div>
+            <figure class="chart-frame">
+              <img src="img/task10_wenshan_price_volume_en.png" alt="Quarterly price per ping and transaction volume in Taipei City's Wenshan District">
+              <figcaption class="chart-caption">
+                <span>Wenshan quarterly price and volume</span>
+                <a href="img/task10_wenshan_price_volume_en.html" target="_blank" rel="noopener">Interactive chart</a>
+              </figcaption>
+            </figure>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <section id="implications" class="section-dark" aria-labelledby="implications-title">
+      <div class="wrap">
+        <div class="section-head">
+          <h2 id="implications-title">Business Applications and Decision Value</h2>
+          <p>
+            The same dataset can support home-buying decisions, developer site selection, financial risk control, and policy analysis.
+          </p>
+        </div>
+
+        <div class="implications">
+          <article class="implication">
+            <span class="tag">Buyer</span>
+            <h3>Reduce Search Cost</h3>
+            <p>Use districts, road segments, and GIS heatmaps to screen out over-premium areas and identify relatively affordable locations with transit access.</p>
+          </article>
+          <article class="implication">
+            <span class="tag">Developer</span>
+            <h3>Identify Product Gaps</h3>
+            <p>Building age, unit size, and the Wenshan case show continued demand for smaller units and resale supply in mature districts, supporting more precise development and aggregation strategies.</p>
+          </article>
+          <article class="implication">
+            <span class="tag">Finance</span>
+            <h3>Assess Regional Risk</h3>
+            <p>After 2024, national correction and Taipei resilience coexist. Credit models should distinguish core assets from peripheral markets instead of applying a single housing-price assumption.</p>
+          </article>
+          <article class="implication">
+            <span class="tag">Policy</span>
+            <h3>Track Policy Effects</h3>
+            <p>Quarterly price-volume changes after credit controls can be tracked and compared across counties, cities, building-age bands, and total-price segments.</p>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <section id="gallery" class="section-band" aria-labelledby="gallery-title">
+      <div class="wrap">
+        <div class="section-head">
+          <h2 id="gallery-title">Charts and Interactive Outputs</h2>
+          <p>
+            Key project charts are collected here, with filters for exploring related outputs by topic.
+          </p>
+        </div>
+
+        <div class="filterbar" role="toolbar" aria-label="Chart category filter">
+          <button type="button" aria-pressed="true" data-filter="all">All</button>
+          <button type="button" aria-pressed="false" data-filter="market">Market Cycle</button>
+          <button type="button" aria-pressed="false" data-filter="space">Spatial Pattern</button>
+          <button type="button" aria-pressed="false" data-filter="structure">Product Structure</button>
+          <button type="button" aria-pressed="false" data-filter="gis">GIS</button>
+          <button type="button" aria-pressed="false" data-filter="wenshan">Wenshan</button>
+        </div>
+
+        <div class="gallery">
+          <article class="gallery-card" data-category="market">
+            <img loading="lazy" src="img/task01_city_cycle_top8_en.png" alt="Quarterly price-per-ping trend for the top eight counties and cities by transaction volume">
+            <div class="gallery-body">
+              <h3>Quarterly Price Trends by Major City</h3>
+              <p>Compares price paths across high-volume counties and cities, showing the divergence between Taipei and other regions.</p>
+              <div class="gallery-links">
+                <a href="img/task01_city_cycle_top8_en.png">PNG</a>
+                <a href="img/task01_city_cycle_top8_en.html" target="_blank" rel="noopener">HTML</a>
+              </div>
+            </div>
+          </article>
+
+          <article class="gallery-card" data-category="space">
+            <img loading="lazy" src="img/task02_district_price_treemap_en.png" alt="Treemap of district transaction volume and median price per ping">
+            <div class="gallery-body">
+              <h3>District Price-Volume Treemap</h3>
+              <p>Area represents transaction volume and color represents median price per ping, making high-liquidity and high-price areas easy to identify.</p>
+              <div class="gallery-links">
+                <a href="img/task02_district_price_treemap_en.png">PNG</a>
+                <a href="img/task02_district_price_treemap_en.html" target="_blank" rel="noopener">HTML</a>
+              </div>
+            </div>
+          </article>
+
+          <article class="gallery-card" data-category="structure">
+            <img loading="lazy" src="img/task06_age_type_heatmap_en.png" alt="Heatmap of price per ping by building type and building-age band">
+            <div class="gallery-body">
+              <h3>Building Type x Building Age</h3>
+              <p>Examines discounts, value retention, and redevelopment premiums across product types and building-age stages.</p>
+              <div class="gallery-links">
+                <a href="img/task06_age_type_heatmap_en.png">PNG</a>
+                <a href="img/task06_age_type_heatmap_en.html" target="_blank" rel="noopener">HTML</a>
+              </div>
+            </div>
+          </article>
+
+          <article class="gallery-card" data-category="structure">
+            <img loading="lazy" src="img/task07_size_band_positioning_en.png" alt="Unit-size band positioning by total-price threshold and unit price">
+            <div class="gallery-body">
+              <h3>Unit Size and Price Positioning</h3>
+              <p>Segments total-price thresholds by unit size and links them to buyer affordability and market positioning.</p>
+              <div class="gallery-links">
+                <a href="img/task07_size_band_positioning_en.png">PNG</a>
+                <a href="img/task07_size_band_positioning_en.html" target="_blank" rel="noopener">HTML</a>
+              </div>
+            </div>
+          </article>
+
+          <article class="gallery-card" data-category="structure">
+            <img loading="lazy" src="img/task07_product_mix_bar_en.png" alt="Bar chart of high-volume housing product combinations">
+            <div class="gallery-body">
+              <h3>High-Volume Product Mix</h3>
+              <p>Reviews unit-size bands and bedroom-count combinations to understand the mainstream specifications actually traded in the market.</p>
+              <div class="gallery-links">
+                <a href="img/task07_product_mix_bar_en.png">PNG</a>
+                <a href="img/task07_product_mix_bar_en.html" target="_blank" rel="noopener">HTML</a>
+              </div>
+            </div>
+          </article>
+
+          <article class="gallery-card" data-category="gis">
+            <img loading="lazy" src="img/task08_township_volume_density_en_style.png" alt="Greater Taipei township-level transaction-volume density map">
+            <div class="gallery-body">
+              <h3>Greater Taipei Transaction Density Map</h3>
+              <p>Uses maps to review district-level transaction density and add spatial continuity that tables cannot show.</p>
+              <div class="gallery-links">
+                <a href="img/task08_township_volume_density_en_style.png">PNG</a>
+                <a href="img/task08_township_volume_density_en_style.html" target="_blank" rel="noopener">HTML</a>
+              </div>
+            </div>
+          </article>
+
+          <article class="gallery-card" data-category="gis">
+            <img loading="lazy" src="img/task08_address_points_en_style.png" alt="Greater Taipei address-level transaction point map">
+            <div class="gallery-body">
+              <h3>Address-Level Transaction Points</h3>
+              <p>Geocodes cleaned residential samples to Greater Taipei blocks and shows micro-level transaction distribution.</p>
+              <div class="gallery-links">
+                <a href="img/task08_address_points_en_style.png">PNG</a>
+                <a href="img/task08_address_points_en_style.html" target="_blank" rel="noopener">HTML</a>
+              </div>
+            </div>
+          </article>
+
+          <article class="gallery-card" data-category="gis">
+            <img loading="lazy" src="img/task09_road_price_hotspots_en.png" alt="Road-segment price hotspots and premium ranking">
+            <div class="gallery-body">
+              <h3>Road-Segment Price Hotspots</h3>
+              <p>Calculates premiums by comparing road-segment median price per ping with city averages to identify high-end residential corridors.</p>
+              <div class="gallery-links">
+                <a href="img/task09_road_price_hotspots_en.png">PNG</a>
+                <a href="img/task09_road_price_hotspots_en.html" target="_blank" rel="noopener">HTML</a>
+              </div>
+            </div>
+          </article>
+
+          <article class="gallery-card" data-category="space">
+            <img loading="lazy" src="img/task09_city_age_heatmap_en.png" alt="Heatmap of median price per ping by major city and building-age band">
+            <div class="gallery-body">
+              <h3>City x Building Age Heatmap</h3>
+              <p>Compares building-age price structures across cities to reveal differences in urban renewal and new-housing outward movement.</p>
+              <div class="gallery-links">
+                <a href="img/task09_city_age_heatmap_en.png">PNG</a>
+                <a href="img/task09_city_age_heatmap_en.html" target="_blank" rel="noopener">HTML</a>
+              </div>
+            </div>
+          </article>
+
+          <article class="gallery-card" data-category="wenshan">
+            <img loading="lazy" src="img/task10_wenshan_profile_en.png" alt="Changes in the Wenshan District residential profile over time">
+            <div class="gallery-body">
+              <h3>Wenshan Residential Profile</h3>
+              <p>Tracks changes in transaction building age and floor area to break down supply-side structure and buyer affordability adjustments.</p>
+              <div class="gallery-links">
+                <a href="img/task10_wenshan_profile_en.png">PNG</a>
+                <a href="img/task10_wenshan_profile_en.html" target="_blank" rel="noopener">HTML</a>
+              </div>
+            </div>
+          </article>
+
+          <article class="gallery-card" data-category="wenshan">
+            <img loading="lazy" src="img/task10_wenshan_type_share_en.png" alt="Changes in Wenshan District transaction share by building type over time">
+            <div class="gallery-body">
+              <h3>Wenshan Product-Type Share</h3>
+              <p>Compares how walk-up apartments, elevator apartments, and high-rise residential buildings shift within Wenshan's transaction mix.</p>
+              <div class="gallery-links">
+                <a href="img/task10_wenshan_type_share_en.png">PNG</a>
+                <a href="img/task10_wenshan_type_share_en.html" target="_blank" rel="noopener">HTML</a>
+              </div>
+            </div>
+          </article>
+
+          <article class="gallery-card" data-category="gis">
+            <img loading="lazy" src="img/task09_road_transaction_treemap_en.png" alt="Treemap of road-segment transaction hotspots">
+            <div class="gallery-body">
+              <h3>Road-Segment Transaction Treemap</h3>
+              <p>Parses road segments from address text and compares local clusters of transaction volume and median price per ping.</p>
+              <div class="gallery-links">
+                <a href="img/task09_road_transaction_treemap_en.png">PNG</a>
+                <a href="img/task09_road_transaction_treemap_en.html" target="_blank" rel="noopener">HTML</a>
+              </div>
+            </div>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <section id="resources" aria-labelledby="resources-title">
+      <div class="wrap">
+        <div class="section-head">
+          <h2 id="resources-title">GitHub Pages Files</h2>
+          <p>
+            The public GitHub Pages build keeps only the static homepage, exported chart assets, the EDA profile, and the repository README.
+          </p>
+        </div>
+
+        <div class="resource-grid">
+          <a class="resource" href="https://youtu.be/3pUSBl5KzFg" target="_blank" rel="noopener">
+            <strong>Final Presentation</strong>
+            <span>Open the presentation video.</span>
+          </a>
+          <a class="resource" href="img/task01_market_cycle_price_volume_en.html" target="_blank" rel="noopener">
+            <strong>Interactive Charts</strong>
+            <span>Open the exported Plotly chart assets stored under img.</span>
+          </a>
+          <a class="resource" href="profile_report.html">
+            <strong>profile_report.html</strong>
+            <span>Exploratory data analysis report generated by ydata-profiling.</span>
+          </a>
+          <a class="resource" href="README.md">
+            <strong>README.md</strong>
+            <span>Repository overview and GitHub Pages upload notes.</span>
+          </a>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    <div class="footer-inner">
+      <span>Data-Driven Taiwan Housing Market Analysis</span>
+      <span>Data source: Ministry of the Interior actual price registration; analysis and charts are organized from the project report.</span>
+    </div>
+  </footer>
+
+  <script>
+    const buttons = document.querySelectorAll("[data-filter]");
+    const cards = document.querySelectorAll(".gallery-card");
+
+    buttons.forEach((button) => {
+      button.addEventListener("click", () => {
+        const filter = button.dataset.filter;
+
+        buttons.forEach((item) => {
+          item.setAttribute("aria-pressed", String(item === button));
+        });
+
+        cards.forEach((card) => {
+          const show = filter === "all" || card.dataset.category === filter;
+          card.hidden = !show;
+        });
+      });
+    });
+  </script>
+</body>
+</html>
