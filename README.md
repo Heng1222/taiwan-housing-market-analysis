@@ -1,5 +1,7 @@
 # Data-Driven Taiwan Housing Market Analysis
 
+![image](img/index_preview.png)
+
 This repository is the GitHub Pages deliverable for a data-driven Taiwan residential real estate market analysis. The public site summarizes findings from 2021Q1 to 2025Q4 actual price registration records, including market-cycle changes, district-level price-volume structure, product effects, GIS patterns, and the Wenshan District case study.
 
 ## GitHub Pages Entry Points
